@@ -649,7 +649,7 @@ function theme_ooyala_player($embedcode, $width = NULL, $height = NULL, $autopla
     $height = variable_Get('ooyala_video_height', 300);
   }
 
-  return sprintf('<script src="http://www.ooyala.com/player.js?autoplay=%d&width=%d&height=%d&embedCode=%s"></script>', $autoplay, $width, $height, $embedcode );
+  return sprintf('<script src="http://www.ooyala.com/player.js?playerId=ooyala_player&callback=receiveOoyalaEvent&autoplay=%d&width=%d&height=%d&embedCode=%s"></script>', $autoplay, $width, $height, $embedcode );
 }
 
 /**
