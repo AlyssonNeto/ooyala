@@ -766,13 +766,16 @@ function theme_ooyala_formatter_ooyala_video($element) {
     unset($item[$key]);
 
     $item['#item'] = $element[$key]['#item'];
-    $values[] = ($allowed = _text_allowed_values($item)) ? $allowed : $item['#item']['safe'];
+    $value = ($allowed = _text_allowed_values($item)) ? $allowed : $item['#item']['safe'];
+    if ($value) {
+      $values[] = $value;
+    }
   }
 
   $player_id = $element['#field_name'] . '_ooyala_player';
 
   // TODO: Make this formatter work on multiple values.
-  return theme('ooyala_player', implode($values), $player_id);
+  return count($values) ? theme('ooyala_player', implode($values), $player_id) : '';
 }
 
 /**
