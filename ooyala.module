@@ -643,6 +643,12 @@ function ooyala_player($embedcode, $player_id = NULL, $width = NULL, $height = N
  * Theme function to output an Ooyala video player.
  */
 function theme_ooyala_player($embedcode, $player_id = NULL, $width = NULL, $height = NULL, $autoplay = FALSE) {
+  static $js_added;
+
+  if (!isset($js_added)) {
+    drupal_add_js(drupal_get_path('module', 'ooyala') . '/ooyala_player.js');
+  }
+
   if (empty($width)) {
     $width = variable_get('ooyala_video_width', 400);
   }
