@@ -652,7 +652,7 @@ function theme_ooyala_player($embedcode, $player_id = NULL, $width = NULL, $heig
 
   $player_id = isset($player_id) ? $player_id : 'ooyala_player';
 
-  return sprintf('<script src="http://www.ooyala.com/player.js?playerId=' . $player_id . '&autoplay=%d&width=%d&height=%d&embedCode=%s"></script>', $autoplay, $width, $height, $embedcode );
+  return sprintf('<script src="http://www.ooyala.com/player.js?playerId=' . $player_id . '&callback=receiveOoyalaEvent&autoplay=%d&width=%d&height=%d&embedCode=%s"></script>', $autoplay, $width, $height, $embedcode );
 }
 
 /**
