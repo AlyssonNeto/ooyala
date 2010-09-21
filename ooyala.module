@@ -101,6 +101,7 @@ function ooyala_theme() {
     'ooyala_player' => array(
       'arguments' => array(
         'embedcode' => NULL,
+        'player_id' => NULL,
         'width' => NULL,
         'height' => NULL,
       ),
@@ -634,14 +635,14 @@ function ooyala_message($message, $variables = array(), $type = 'status') {
 /**
  * A public API function used to output an Ooyala player.
  */
-function ooyala_player($embedcode, $width = NULL, $height = NULL,$autoplay = FALSE) {
-  return theme('ooyala_player', $embedcode, $width, $height, $autoplay);
+function ooyala_player($embedcode, $player_id = NULL, $width = NULL, $height = NULL,$autoplay = FALSE) {
+  return theme('ooyala_player', $embedcode, $player_id, $width, $height, $autoplay);
 }
 
 /**
  * Theme function to output an Ooyala video player.
  */
-function theme_ooyala_player($embedcode, $width = NULL, $height = NULL, $autoplay = FALSE) {
+function theme_ooyala_player($embedcode, $player_id = NULL, $width = NULL, $height = NULL, $autoplay = FALSE) {
   if (empty($width)) {
     $width = variable_get('ooyala_video_width', 400);
   }
@@ -649,7 +650,9 @@ function theme_ooyala_player($embedcode, $width = NULL, $height = NULL, $autopla
     $height = variable_Get('ooyala_video_height', 300);
   }
 
-  return sprintf('<script src="http://www.ooyala.com/player.js?playerId=ooyala_player&callback=receiveOoyalaEvent&autoplay=%d&width=%d&height=%d&embedCode=%s"></script>', $autoplay, $width, $height, $embedcode );
+  $player_id = isset($player_id) ? $player_id : 'ooyala_player';
+
+  return sprintf('<script src="http://www.ooyala.com/player.js?playerId=' . $player_id . '&autoplay=%d&width=%d&height=%d&embedCode=%s"></script>', $autoplay, $width, $height, $embedcode );
 }
 
 /**
@@ -760,8 +763,10 @@ function theme_ooyala_formatter_ooyala_video($element) {
     $values[] = ($allowed = _text_allowed_values($item)) ? $allowed : $item['#item']['safe'];
   }
 
+  $player_id = $element['#field_name'] . '_ooyala_player';
+
   // TODO: Make this formatter work on multiple values.
-  return theme('ooyala_player', implode($values));
+  return theme('ooyala_player', implode($values), $player_id);
 }
 
 /**
@@ -783,7 +788,7 @@ function theme_ooyala_formatter_ooyala_thumbnail($element) {
  * Theme function to output the "ooyala_thickbox" formatter.
  */
 function theme_ooyala_formatter_ooyala_thickbox($element, $preset = NULL) {
-  $link_url = url('ooyalavideo/' . $element['#item']['value'], array('query' => array(
+  $link_url = url('ooyalavideo/' . $element['#item']['value'], array('absolute' => TRUE,'query' => array(
     'KeepThis' => 'true',
     'TB_iframe' => 'true',
     'width' => variable_get('ooyala_thickbox_width', 500),
@@ -927,7 +932,7 @@ function _ooyala_check_directory($path) {
  */
 
 function ooyala_thickbox_player_page($embedcode) {
-  print ooyala_player($embedcode ,NULL,NULL, variable_get('ooyala_thickbox_autoplay', true) );
+  print ooyala_player($embedcode, 'ooyala_thickbox_player' ,NULL,NULL, variable_get('ooyala_thickbox_autoplay', true) );
 }
 
 /**
