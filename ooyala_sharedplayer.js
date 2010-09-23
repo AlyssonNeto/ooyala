@@ -11,25 +11,21 @@ jQuery.each(Drupal.settings.ooyalaSharedPlayerCodes, function(i, val) {
   });
 });
 
-// If the ooyala_player.js hasn't been loaded yet we initialize the object so
-// that we can added to it.
-Drupal.ooyala = Drupal.ooyala || {'listeners': {}};
-
-/**
- * Add an event responder to Drupal.ooyala.listners list.
- */
-Drupal.ooyala.listeners.shared_player = function(player, eventName, p) {
-  playerId = $(this).attr('id');
+function receiveOoyalaEvent(playerId, eventName, p) {
   switch(eventName) {
     case 'embedCodeChanged':
+
       $('#title-' + playerId ).empty().append(p.title);
       $('#description-' + playerId ).empty().append(p.description);
-      break;
+      
+
+    break;
     case 'loadComplete':
       var description = document.getElementById(Drupal.settings.ooyalaSharedPlayer).getCurrentItem();
       $('#title-' + playerId ).empty().append(description.title);
-      $('#description-' + playerId ).empty().append(description.description);     
-      break;
+      $('#description-' + playerId ).empty().append(description.description);
+      
+    break;
   }
   return;
 }
