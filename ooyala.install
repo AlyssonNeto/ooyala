@@ -57,6 +57,9 @@ function ooyala_update_6001() {
     }
   }
 
+  // Re-build all field definitions.
+  content_associate_fields('ooyala');
+
   // Update database storage (add status and length columns).
   foreach ($fields as $field) {
     $new_field = $field;

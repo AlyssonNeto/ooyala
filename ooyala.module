@@ -193,7 +193,7 @@ function ooyala_cron() {
   // data synced yet. We currently procerss 10 nodes per cron run to avoid
   // timeout.
   // @TODO: Make this number configurable.
-  $updated_nodes = _ooyala_sync_data();
+  $updated_nodes = _ooyala_sync_data(10);
   foreach ($updated_nodes as $nid => $title) {
     watchdog('ooyala', t('Updated video status/length for %title.', array('%title' => $title)));
   }
@@ -217,7 +217,7 @@ function _ooyala_sync_data($limit = 10) {
     if ($field['type'] == 'ooyala') {
       $fields[$field_name] = $field;
       $db_info = content_database_info($field);
-      $fields[$field_name]['query'] = 'SELECT nid FROM {' . $db_info['table'] . '} WHERE ISNULL(' . $db_info['columns']['status']['column'] . ') OR ISNULL(' . $db_info['columns']['length']['column'] . ')';
+      $fields[$field_name]['query'] = 'SELECT nid FROM {' . $db_info['table'] . '} WHERE NOT ISNULL(' . $db_info['columns']['value']['column'] . ') AND (ISNULL(' . $db_info['columns']['status']['column'] . ') OR ISNULL(' . $db_info['columns']['length']['column'] . '))';
       $fields[$field_name]['db_info'] = content_database_info($field);
     }
   }
@@ -234,7 +234,7 @@ function _ooyala_sync_data($limit = 10) {
     }
   }
 
-  return _ooyala_sync_udpate_nodes($nids);
+  return _ooyala_sync_update_nodes($nids);
 }
 
 /**
@@ -248,10 +248,14 @@ function _ooyala_sync_data($limit = 10) {
  *   Array of updated node titles indexed by node id.
  */
 function _ooyala_sync_update_nodes($nodes) {
+  if (!ooyala_api_available()) {
+    return FALSE;
+  }
+
   // Query the Ooyala API and save retrieved information for each node.
   $updated = array();
-  foreach ($nids as $key => $value) {
-    $node = is_int($value) ? node_load($nid) : $value;
+  foreach ($nodes as $key => $value) {
+    $node = is_object($value) ? $value : node_load($value);
     foreach ($node->ooyala_field_names as $field_name) {
       foreach ($node->{$field_name} as $key => $value) {
         $embedcode = isset($node->{$field_name}[$key]['value']) ? $node->{$field_name}[$key]['value'] : FALSE;
