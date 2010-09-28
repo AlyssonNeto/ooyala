@@ -62,50 +62,50 @@ Drupal.ooyala.processUpload = function() {
 /**
  * AJAX success handler.
  */
-Drupal.ooyala.refreshThumbanil = function(data) {
-  $('.ooyala-preview').removeClass('ooyala-progress').find('.throbber').remove();
+Drupal.ooyala.refreshThumbnail = function(data) {
+ $('.ooyala-preview').removeClass('ooyala-progress').find('.throbber').remove();
 
-  if (!data['error']) {
-    if (data['field_id']) {
-      var preview = $('#' + data['field_id']).removeClass('ooyala-preview-hidden').get(0);
-    }
-    else {
-      var preview = $('.ooyala-preview').removeClass('ooyala-preview-hidden').get(0);
-    }
+ if (!data['error']) {
+   if (data['field_id']) {
+     var preview = $('#' + data['field_id']).removeClass('ooyala-preview-hidden').get(0);
+   }
+   else {
+     var preview = $('.ooyala-preview').removeClass('ooyala-preview-hidden').get(0);
+   }
 
-    $(preview).html(data['content']);
+   $(preview).html(data['content']);
 
-    var image = $('.ooyala-preview').find('img').get(0);
-    if (image) {
-      var src = $(image).attr('src');
-      var timestamp = new Date().getTime();
-      $(image).attr('src', src + '?' + timestamp);
-    }
-  }
+   var image = $('.ooyala-preview').find('img').get(0);
+   if (image) {
+     var src = $(image).attr('src');
+     var timestamp = new Date().getTime();
+     $(image).attr('src', src + '?' + timestamp);
+   }
+ }
 
-  if (data['message']) {
-    alert(data['message']);
-  }
+ if (data['message']) {
+   alert(data['message']);
+ }
 }
 
 /**
- * Add AJAX functionality to the thumbnail refresh link.
- */
+* Add AJAX functionality to the thumbnail refresh link.
+*/
 Drupal.behaviors.ooyalaRefreshThumbnail = function(context) {
-  $('a.ooyala-refresh', context).click(function() {
-    var embedcode = $(this).parents('.ooyala-button-container').find('.ooyala-embed-code-input').val();
-    var field_id = $(this).parents('.ooyala-field').find('.ooyala-preview').attr('id');
-    $(this).parents('.ooyala-field').find('.ooyala-preview')
-      .addClass('ooyala-progress')
-      .append('<span class="throbber">&nbsp;</span>');
-    $.ajax({
-      url: Drupal.settings.ooyalaRefreshUrl,
-      success: Drupal.ooyala.refreshThumbanil,
-      dataType: 'json',
-      data: { embedcode: embedcode, field_id: field_id }
-    });
-    return false;
-  });
+ $('a.ooyala-refresh', context).click(function() {
+   var embedcode = $(this).parents('.ooyala-button-container').find('.ooyala-embed-code-input').val();
+   var field_id = $(this).parents('.ooyala-field').find('.ooyala-preview').attr('id');
+   $(this).parents('.ooyala-field').find('.ooyala-preview')
+     .addClass('ooyala-progress')
+     .append('<span class="throbber">&nbsp;</span>');
+   $.ajax({
+     url: Drupal.settings.ooyalaRefreshUrl,
+     success: Drupal.ooyala.refreshThumbnail,
+     dataType: 'json',
+     data: { embedcode: embedcode, field_id: field_id }
+   });
+   return false;
+ });
 }
 
 /**
