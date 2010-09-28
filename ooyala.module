@@ -81,7 +81,7 @@ function ooyala_elements() {
   return array(
     'ooyala_upload' => array(
       '#input' => TRUE,
-      '#columns' => array('value'),
+      '#columns' => array('value', 'status', 'length'),
       '#delta' => 0,
       '#process' => array('ooyala_upload_process'),
     ),
@@ -101,7 +101,6 @@ function ooyala_theme() {
     'ooyala_player' => array(
       'arguments' => array(
         'embedcode' => NULL,
-        'player_id' => NULL,
         'width' => NULL,
         'height' => NULL,
       ),
@@ -140,6 +139,12 @@ function ooyala_theme() {
         'image_attributes' => array(),
         'get_size' => FALSE,
       ),
+    ),
+    'ooyala_video_length' => array(
+      'arguments' => array('length' => NULL, 'label' => TRUE),
+    ),
+    'ooyala_video_status' => array(
+      'arguments' => array('status' => NULL, 'label' => TRUE),
     ),
   );
 
@@ -183,6 +188,88 @@ function ooyala_cron() {
   }
 
   variable_set('ooyala_pending_thumbnails', $thumbnails_to_get);
+
+  // Update the status/length information for any nodes that haven't had the
+  // data synced yet. We currently procerss 10 nodes per cron run to avoid
+  // timeout.
+  // @TODO: Make this number configurable.
+  $updated_nodes = _ooyala_sync_data(10);
+  foreach ($updated_nodes as $nid => $title) {
+    watchdog('ooyala', t('Updated video status/length for %title.', array('%title' => $title)));
+  }
+}
+
+/**
+ * Query Ooayal API to sync status/length information for nodes that are
+ * missing that information.
+ *
+ * @param $limit
+ *   Number of nodes to update. Set to 0 for unlimited.
+ *
+ * @return
+ *   And array of node titles keyed by nid of nodes that where updated.
+ */
+function _ooyala_sync_data($limit = 10) {
+  // Syncronize status/length information for videos that do not have it yet.
+  // Gather information about all ooyala fields.
+  $fields = array();
+  foreach (content_fields() as $field_name => $field) {
+    if ($field['type'] == 'ooyala') {
+      $fields[$field_name] = $field;
+      $db_info = content_database_info($field);
+      $fields[$field_name]['query'] = 'SELECT nid FROM {' . $db_info['table'] . '} WHERE NOT ISNULL(' . $db_info['columns']['value']['column'] . ') AND (ISNULL(' . $db_info['columns']['status']['column'] . ') OR ISNULL(' . $db_info['columns']['length']['column'] . '))';
+      $fields[$field_name]['db_info'] = content_database_info($field);
+    }
+  }
+
+  // Get a list of fields that need status/length updated.
+  $nids = array();
+  foreach ($fields as $field_name => $field) {
+    $result = db_query($field['query']);
+    while (($row = db_fetch_object($result)) && (count($nids) < $limit || $limit == 0)) {
+      $nids[] = $row->nid;
+    }
+    if ((count($nids) == $limit) && $limit != 0) {
+      break;
+    }
+  }
+
+  return _ooyala_sync_update_nodes($nids);
+}
+
+/**
+ * Given an array of either node ids or node objects attemp to retrieve data
+ * from the Ooyala API and save the status/length information for each node.
+ *
+ * @param $nodes
+ *   Either an array of numeric node IDs or already loaded node objects.
+ *
+ * @return
+ *   Array of updated node titles indexed by node id.
+ */
+function _ooyala_sync_update_nodes($nodes) {
+  if (!ooyala_api_available()) {
+    return FALSE;
+  }
+
+  // Query the Ooyala API and save retrieved information for each node.
+  $updated = array();
+  foreach ($nodes as $key => $value) {
+    $node = is_object($value) ? $value : node_load($value);
+    foreach ($node->ooyala_field_names as $field_name) {
+      foreach ($node->{$field_name} as $key => $value) {
+        $embedcode = isset($node->{$field_name}[$key]['value']) ? $node->{$field_name}[$key]['value'] : FALSE;
+        if ($embedcode) {
+          $node->{$field_name}[$key]['status'] = ooyala_api_video_property($embedcode, 'status');
+          $node->{$field_name}[$key]['length'] = ooyala_api_video_property($embedcode, 'length');
+          node_save($node);
+          $updated[$node->nid] = $node->title;
+        }
+      }
+    }
+  }
+
+  return $updated;
 }
 
 /**
@@ -261,7 +348,23 @@ function ooyala_field_settings($op, $field) {
         'sortable' => FALSE,
         'views' => TRUE,
       );
+      $columns['status'] = array(
+        'type' => 'varchar',
+        'length' => 100,
+        'not null' => FALSE,
+        'sortable' => FALSE,
+        'views' => TRUE,
+      );
+      $columns['length'] = array(
+        'type' => 'int',
+        'not null' => FALSE,
+        'sortable' => TRUE,
+        'views' => TRUE,
+      );
       return $columns;
+    case 'views data':
+      module_load_include('inc', 'ooyala', 'includes/ooyala.views');
+      return ooyala_views_content_field_data($field);
   }
 }
 
@@ -278,6 +381,17 @@ function ooyala_field($op, &$node, $field, &$items, $teaser, $page) {
         $text = check_plain($item['value']);
         $items[$delta]['safe'] = $text;
       }
+      break;
+
+    case 'presave':
+    case 'insert':
+    case 'udpate':
+      // Attempt to retrieve video status/length data before saving the field.
+      foreach ($items as $delta => $item) {
+        $items[$delta]['length'] = empty($items[$delta]['length']) ? ooyala_api_video_property($item['value'], 'length') : $items[$delta]['length'];
+        $items[$delta]['status'] = empty($items[$delta]['status']) ? ooyala_api_video_property($item['value'], 'status') : $items[$delta]['status'];
+      }
+      break;
   }
 }
 
@@ -424,6 +538,14 @@ function ooyala_upload_process($element, $edit, &$form_state, $form) {
     '#description' => $element['#description'],
     '#default_value' => isset($element['#value'][0]['value']) ? $element['#value'][0]['value'] : FALSE,
   );
+  $element['status'] = array(
+    '#type' => 'hidden',
+    '#default_value' => isset($element['#ooyala_video']['status']) ? $element['#ooyala_video']['status'] : NULL,
+  );
+  $element['length'] = array(
+    '#type' => 'hidden',
+    '#default_value' => isset($element['#ooyala_video']['length']) ? $element['#ooyala_video']['length'] : NULL,
+  );
 
   // Set #element_validate in a way that it will not wipe out other
   // validation functions already set by other modules.
@@ -458,13 +580,6 @@ function ooyala_load_nodes($embedcode) {
   }
 
   return $nodes;
-}
-
-/**
- * A lightweight approach to publishing a node.
- */
-function ooyala_publish_node($nid) {
-  return db_query("UPDATE {node} SET status = 1 WHERE nid = %d", $nid);
 }
 
 /**
@@ -635,20 +750,14 @@ function ooyala_message($message, $variables = array(), $type = 'status') {
 /**
  * A public API function used to output an Ooyala player.
  */
-function ooyala_player($embedcode, $player_id = NULL, $width = NULL, $height = NULL,$autoplay = FALSE) {
-  return theme('ooyala_player', $embedcode, $player_id, $width, $height, $autoplay);
+function ooyala_player($embedcode, $width = NULL, $height = NULL,$autoplay = FALSE) {
+  return theme('ooyala_player', $embedcode, $width, $height, $autoplay);
 }
 
 /**
  * Theme function to output an Ooyala video player.
  */
-function theme_ooyala_player($embedcode, $player_id = NULL, $width = NULL, $height = NULL, $autoplay = FALSE) {
-  static $js_added;
-
-  if (!isset($js_added)) {
-    drupal_add_js(drupal_get_path('module', 'ooyala') . '/ooyala_player.js');
-  }
-
+function theme_ooyala_player($embedcode, $width = NULL, $height = NULL, $autoplay = FALSE) {
   if (empty($width)) {
     $width = variable_get('ooyala_video_width', 400);
   }
@@ -656,9 +765,7 @@ function theme_ooyala_player($embedcode, $player_id = NULL, $width = NULL, $heig
     $height = variable_Get('ooyala_video_height', 300);
   }
 
-  $player_id = isset($player_id) ? $player_id : 'ooyala_player';
-
-  return sprintf('<script src="http://www.ooyala.com/player.js?playerId=' . $player_id . '&callback=receiveOoyalaEvent&autoplay=%d&width=%d&height=%d&embedCode=%s"></script>', $autoplay, $width, $height, $embedcode );
+  return sprintf('<script src="http://www.ooyala.com/player.js?autoplay=%d&width=%d&height=%d&embedCode=%s"></script>', $autoplay, $width, $height, $embedcode );
 }
 
 /**
@@ -699,13 +806,17 @@ function theme_ooyala_upload($element) {
 
   $output = '';
   $output .= '<div class="ooyala-field clear-block">';
-  $output .= '<div class="ooyala-preview' . ($element['value']['#value'] ? '' : ' ooyala-preview-hidden') . '">';
+  $output .= '<div id="ooyala-preview-' . $element['#field']['field_name'] . '" class="ooyala-preview' . ($element['value']['#value'] ? '' : ' ooyala-preview-hidden') . '">';
   $output .= theme('ooyala_upload_preview', $element['value']['#value']);
-  $output .= '</div>';
+  $output .= isset($element['length']['#value']) ? theme('ooyala_video_length', $element['length']['#value']) : '';
+  $output .= isset($element['status']['#value']) ? theme('ooyala_video_status', $element['status']['#value']) : '';
+  $output .= '</div>'; // ooyala-preview
   $output .= '<div class="ooyala-button-container">';
   $output .= drupal_render($element['value']);
-  $output .= '</div>';
-  $output .= '</div>';
+  $output .= drupal_render($element['status']);
+  $output .= drupal_render($element['length']);
+  $output .= '</div>'; // ooyala-button-container
+  $output .= '</div>'; // ooyala-field
   return $output;
 }
 
@@ -766,16 +877,11 @@ function theme_ooyala_formatter_ooyala_video($element) {
     unset($item[$key]);
 
     $item['#item'] = $element[$key]['#item'];
-    $value = ($allowed = _text_allowed_values($item)) ? $allowed : $item['#item']['safe'];
-    if ($value) {
-      $values[] = $value;
-    }
+    $values[] = ($allowed = _text_allowed_values($item)) ? $allowed : $item['#item']['safe'];
   }
 
-  $player_id = $element['#field_name'] . '_ooyala_player';
-
   // TODO: Make this formatter work on multiple values.
-  return count($values) ? theme('ooyala_player', implode($values), $player_id) : '';
+  return theme('ooyala_player', implode($values));
 }
 
 /**
@@ -797,7 +903,7 @@ function theme_ooyala_formatter_ooyala_thumbnail($element) {
  * Theme function to output the "ooyala_thickbox" formatter.
  */
 function theme_ooyala_formatter_ooyala_thickbox($element, $preset = NULL) {
-  $link_url = url('ooyalavideo/' . $element['#item']['value'], array('absolute' => TRUE,'query' => array(
+  $link_url = url('ooyalavideo/' . $element['#item']['value'], array('query' => array(
     'KeepThis' => 'true',
     'TB_iframe' => 'true',
     'width' => variable_get('ooyala_thickbox_width', 500),
@@ -839,6 +945,43 @@ function theme_ooyala_thumbnail($embedcode, $preset = NULL, $link_href = NULL, $
   }
 
   return '<div class="ooyala-thumbnail">' . $output .'</div>';
+}
+
+/**
+ * Themed output for an Ooyala video's length.
+ *
+ * @param $length
+ *   Length of the video in milliseconds.
+ */
+function theme_ooyala_video_length($length = NULL, $label = TRUE) {
+  $length = isset($length) ? $length : 0;
+
+  if (!is_numeric($length) || $length == 0) {
+    $output =  $label ? t('Length: unknown') : t('unknown');
+  }
+  else {
+    // Convert seconds to hh:mm:ss.
+    // Hours.
+    $length = intval($length/1000);
+    $hms = intval(intval($length) / 3600) . ':';
+    $minutes = intval(($length / 60) % 60); 
+    // Add to $hms (with a leading 0 if needed)
+    $hms .= str_pad($minutes, 2, "0", STR_PAD_LEFT). ':';
+    $seconds = intval($length % 60); 
+    $hms .= str_pad($seconds, 2, "0", STR_PAD_LEFT);
+    $output = $label ? t('Length: %length', array('%length' => $hms)) : check_plain($hms);
+  }
+
+  return '<div class="ooyala-video-length">' . $output . '</div>';
+}
+
+/**
+ * Themed output for an Ooyala video's status.
+ */
+function theme_ooyala_video_status($status = NULL, $label = TRUE) {
+  $status = isset($status) ? $status : t('unknown');
+  $output = $label ? t('Status: %status', array('%status' => $status)) : check_plain($status);
+  return '<div class="ooyala-video-status">' . $output . '</div>';
 }
 
 /**
@@ -941,7 +1084,7 @@ function _ooyala_check_directory($path) {
  */
 
 function ooyala_thickbox_player_page($embedcode) {
-  print ooyala_player($embedcode, 'ooyala_thickbox_player' ,NULL,NULL, variable_get('ooyala_thickbox_autoplay', true) );
+  print ooyala_player($embedcode ,NULL,NULL, variable_get('ooyala_thickbox_autoplay', true) );
 }
 
 /**

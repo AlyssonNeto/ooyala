@@ -240,7 +240,6 @@ function ooyala_refresh_thumbnail() {
   if (isset($_GET['token']) && $_GET['token'] == $token) {
     if (isset($_GET['embedcode']) && $_GET['embedcode']) {
       $embedcode = $_GET['embedcode'];
-
       // Try to retrieve a new thumbnail.
       if ($thumb_path = ooyala_api_fetch_image($embedcode)) {
         $data['content'] = theme('ooyala_upload_preview', $embedcode);
@@ -257,6 +256,10 @@ function ooyala_refresh_thumbnail() {
         $data['message'] = t('A thumbnail was not able to be retrieved. Check that the video code correct and that the video has finished processing.');
         $data['error'] = 0;
       }
+
+      $data['content'] .= theme('ooyala_video_length', ooyala_api_video_property($embedcode, 'length'));
+      $data['content'] .= theme('ooyala_video_status', ooyala_api_video_property($embedcode, 'status'));
+
     }
     else {
       $data['message'] = t('A video code must be provided before it can be previewed.');
@@ -301,7 +304,9 @@ function ooyala_ping() {
       if ($nodes = ooyala_load_nodes($embedcode)) {
         foreach ($nodes as $node) {
           if (!$node->status) {
-            ooyala_publish_node($node->nid);
+            $node->status = 1;
+            $a = array($node);
+            _ooyala_sync_udpate_nodes($a);
             $messages[] = t('The content <a href="!url">%title</a> has published.', array('!url' => url('node/' . $node->nid), '%title' => $node->title));
           }
           else {

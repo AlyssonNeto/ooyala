@@ -5,7 +5,7 @@
  * Ooyala upload widget JavaScript code.
  */
 
-Drupal.ooyala = Drupal.ooyala || {'listeners': {}};
+Drupal.ooyala = Drupal.ooyala || {};
 
 Drupal.ooyala.onFileSelected = function(file) {
   $('.ooyala-button-container').removeClass('ooyala-finished');
