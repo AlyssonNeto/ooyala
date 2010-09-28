@@ -37,3 +37,51 @@ function ooyala_disable() {
   drupal_load('module', 'content');
   content_notify('disable', 'ooyala');
 }
+
+/**
+ * Add *_status and *_length columns for all ooyala video fields.
+ */
+function ooyala_update_6001() {
+  $ret = array();
+
+  module_load_include('inc', 'content', 'includes/content.admin');
+
+  // Build a list of fields that need data updating.
+  $fields = array();
+  foreach (content_types_install() as $type => $type_fields) {
+    foreach ($type_fields as $field) {
+      if ($field['type'] == 'ooyala') {
+        // We only process a given field once.
+        $fields[$field['field_name']] = $field;
+      }
+    }
+  }
+
+  // Update database storage (add status and length columns).
+  foreach ($fields as $field) {
+    $new_field = $field;
+
+    // Setup new field definition
+    $new_field['columns']['status'] = array(
+      'type' => 'varchar',
+      'length' => 100,
+      'not null' => FALSE,
+    );
+    $new_field['columns']['length'] = array(
+      'type' => 'int',
+      'not null' => FALSE,
+    );
+
+    content_alter_db($field, $new_field);
+    $ret[] = array('success' => TRUE, 'query' => t('The file field %field has been updated with new settings.', array('%field' => $field['field_name'])));
+  }
+
+  // @TODO: Should we add a batch opteration here to update the data of all
+  // existing fields. Or just let it get updated on cron?
+
+  // Clear caches.
+  cache_clear_all('*', content_cache_tablename(), TRUE);
+  cache_clear_all('*', 'cache', TRUE);
+
+  return $ret;
+}

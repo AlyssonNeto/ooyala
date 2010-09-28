@@ -240,7 +240,6 @@ function ooyala_refresh_thumbnail() {
   if (isset($_GET['token']) && $_GET['token'] == $token) {
     if (isset($_GET['embedcode']) && $_GET['embedcode']) {
       $embedcode = $_GET['embedcode'];
-
       // Try to retrieve a new thumbnail.
       if ($thumb_path = ooyala_api_fetch_image($embedcode)) {
         $data['content'] = theme('ooyala_upload_preview', $embedcode);
@@ -301,7 +300,9 @@ function ooyala_ping() {
       if ($nodes = ooyala_load_nodes($embedcode)) {
         foreach ($nodes as $node) {
           if (!$node->status) {
-            ooyala_publish_node($node->nid);
+            $node->status = 1;
+            $a = array($node);
+            _ooyala_sync_udpate_nodes($a);
             $messages[] = t('The content <a href="!url">%title</a> has published.', array('!url' => url('node/' . $node->nid), '%title' => $node->title));
           }
           else {

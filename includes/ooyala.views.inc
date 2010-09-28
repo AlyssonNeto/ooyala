@@ -7,6 +7,26 @@
  */
 
 /**
+ * Implementation of hook_views_handlers().
+ */
+function ooyala_views_handlers() {
+  return array(
+    'info' => array(
+      'path' => drupal_get_path('module', 'ooyala') . '/includes',
+    ),
+    'handlers' => array(
+      // field handlers
+      'ooyala_handler_field_length' => array(
+        'parent' => 'views_handler_field_node',
+      ),
+      'ooyala_handler_field_status' => array(
+        'parent' => 'views_handler_field_node',
+      ),
+    ),
+  );
+}
+
+/**
   * Implementation of hook_views_plugin().
   */
 function ooyala_views_plugins() {
@@ -26,4 +46,41 @@ function ooyala_views_plugins() {
       ),
     ),
   );
+}
+
+/**
+ * Return CCK Views data for the ooyala_field_settings($op == 'views data').
+ */
+function ooyala_views_content_field_data($field) {
+  // Build the automatic views data provided for us by CCK.
+  // This creates all the information necessary for the "url" field.
+  $data = content_views_field_views_data($field);
+
+  $db_info = content_database_info($field);
+  $table_alias = content_views_tablename($field);
+  $field_types = _content_field_types();
+
+  // Add special handlers for length, and status fields.
+  $data[$table_alias][$field['field_name'] .'_length']['field'] = array(
+    'title' => $data[$table_alias][$field['field_name'] .'_length']['title'],
+    'title short' => $data[$table_alias][$field['field_name'] .'_length']['title short'],
+    'field' => $db_info['columns']['length']['column'],
+    'table' => $db_info['table'],
+    'handler' => 'ooyala_handler_field_length',
+    'click sortable' => FALSE,
+    'access callback' => 'content_access',
+    'access arguments' => array('view', $field),
+  );
+  $data[$table_alias][$field['field_name'] .'_status']['field'] = array(
+    'title' => $data[$table_alias][$field['field_name'] .'_status']['title'],
+    'title short' => $data[$table_alias][$field['field_name'] .'_status']['title short'],
+    'field' => $db_info['columns']['status']['column'],
+    'table' => $db_info['table'],
+    'handler' => 'ooyala_handler_field_status',
+    'click sortable' => FALSE,
+    'access callback' => 'content_access',
+    'access arguments' => array('view', $field),
+  );
+
+  return $data;
 }

@@ -66,7 +66,13 @@ Drupal.ooyala.refreshThumbanil = function(data) {
   $('.ooyala-preview').removeClass('ooyala-progress').find('.throbber').remove();
 
   if (!data['error']) {
-    var preview = $('.ooyala-preview').removeClass('ooyala-preview-hidden').get(0);
+    if (data['field_id']) {
+      var preview = $('#' + data['field_id']).removeClass('ooyala-preview-hidden').get(0);
+    }
+    else {
+      var preview = $('.ooyala-preview').removeClass('ooyala-preview-hidden').get(0);
+    }
+
     $(preview).html(data['content']);
 
     var image = $('.ooyala-preview').find('img').get(0);
@@ -88,6 +94,7 @@ Drupal.ooyala.refreshThumbanil = function(data) {
 Drupal.behaviors.ooyalaRefreshThumbnail = function(context) {
   $('a.ooyala-refresh', context).click(function() {
     var embedcode = $(this).parents('.ooyala-button-container').find('.ooyala-embed-code-input').val();
+    var field_id = $(this).parents('.ooyala-field').find('.ooyala-preview').attr('id');
     $(this).parents('.ooyala-field').find('.ooyala-preview')
       .addClass('ooyala-progress')
       .append('<span class="throbber">&nbsp;</span>');
@@ -95,7 +102,7 @@ Drupal.behaviors.ooyalaRefreshThumbnail = function(context) {
       url: Drupal.settings.ooyalaRefreshUrl,
       success: Drupal.ooyala.refreshThumbanil,
       dataType: 'json',
-      data: { embedcode: embedcode }
+      data: { embedcode: embedcode, field_id: field_id }
     });
     return false;
   });
