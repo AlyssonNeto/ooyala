@@ -256,6 +256,10 @@ function ooyala_refresh_thumbnail() {
         $data['message'] = t('A thumbnail was not able to be retrieved. Check that the video code correct and that the video has finished processing.');
         $data['error'] = 0;
       }
+
+      $data['content'] .= theme('ooyala_video_length', ooyala_api_video_property($embedcode, 'length'));
+      $data['content'] .= theme('ooyala_video_status', ooyala_api_video_property($embedcode, 'status'));
+
     }
     else {
       $data['message'] = t('A video code must be provided before it can be previewed.');
