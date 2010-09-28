@@ -690,7 +690,7 @@ function theme_ooyala_upload($element) {
 
   $output = '';
   $output .= '<div class="ooyala-field clear-block">';
-  $output .= '<div class="ooyala-preview' . ($element['value']['#value'] ? '' : ' ooyala-preview-hidden') . '">';
+  $output .= '<div id="ooyala-preview-' . $element['#field']['field_name'] . '" class="ooyala-preview' . ($element['value']['#value'] ? '' : ' ooyala-preview-hidden') . '">';
   $output .= theme('ooyala_upload_preview', $element['value']['#value']);
   $output .= '</div>';
   $output .= '<div class="ooyala-button-container">';
