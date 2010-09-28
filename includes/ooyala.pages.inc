@@ -267,8 +267,6 @@ function ooyala_refresh_thumbnail() {
     $data['error'] = 1;
   }
 
-  $data['field_id'] = isset($_GET['field_id']) ? $_GET['field_id'] : '';
-
   drupal_json($data);
 }
 
