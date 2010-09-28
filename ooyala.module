@@ -377,6 +377,17 @@ function ooyala_field($op, &$node, $field, &$items, $teaser, $page) {
         $text = check_plain($item['value']);
         $items[$delta]['safe'] = $text;
       }
+      break;
+
+    case 'presave':
+    case 'insert':
+    case 'udpate':
+      // Attempt to retrieve video status/length data before saving the field.
+      foreach ($items as $delta => $item) {
+        $items[$delta]['length'] = empty($items[$delta]['length']) ? ooyala_api_video_property($item['value'], 'length') : $items[$delta]['length'];
+        $items[$delta]['status'] = empty($items[$delta]['status']) ? ooyala_api_video_property($item['value'], 'status') : $items[$delta]['status'];
+      }
+      break;
   }
 }
 
