@@ -257,8 +257,8 @@ function ooyala_refresh_thumbnail() {
         $data['error'] = 0;
       }
 
-      $data['content'] .= theme('ooyala_video_length', ooyala_api_video_property($embedcode, 'length'));
-      $data['content'] .= theme('ooyala_video_status', ooyala_api_video_property($embedcode, 'status'));
+      $data['content'] .= theme('ooyala_video_data', 'length', ooyala_api_video_property($embedcode, 'length'));
+      $data['content'] .= theme('ooyala_video_data', 'status', ooyala_api_video_property($embedcode, 'status'));
 
     }
     else {

@@ -19,9 +19,6 @@ function ooyala_views_handlers() {
       'ooyala_handler_field_length' => array(
         'parent' => 'views_handler_field_node',
       ),
-      'ooyala_handler_field_status' => array(
-        'parent' => 'views_handler_field_node',
-      ),
     ),
   );
 }
@@ -76,7 +73,7 @@ function ooyala_views_content_field_data($field) {
     'title short' => $data[$table_alias][$field['field_name'] .'_status']['title short'],
     'field' => $db_info['columns']['status']['column'],
     'table' => $db_info['table'],
-    'handler' => 'ooyala_handler_field_status',
+    'handler' => 'views_handler_field_node',
     'click sortable' => FALSE,
     'access callback' => 'content_access',
     'access arguments' => array('view', $field),
