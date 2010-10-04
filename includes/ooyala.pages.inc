@@ -46,6 +46,13 @@ function ooyala_settings_form() {
     '#field_prefix' => file_directory_path() . '/',
   );
 
+  $form['ooyala_signed_embeds'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use signed embeds when displaying video player.'),
+    '#description' => t('Using signed embeds provides a level of security for your embed codes by ensuring that paramaters passed to the player.js file are not subject to local modification. Signed embeds automaticaly add an expires parameter to all embedcodes which can be used in conjuction with configuring video flight times or pausing videos in backlot to ensure that an embedcode is only valid for a short period of time.'),
+    '#default_value' => variable_get('ooyala_signed_embeds', FALSE),
+  );
+
   $form['ooyala_video_height'] = array(
     '#type' => 'textfield', 
     '#description' => t('The height that the full player video will have'),

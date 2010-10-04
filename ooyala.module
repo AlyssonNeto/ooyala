@@ -102,8 +102,20 @@ function ooyala_theme() {
       'arguments' => array(
         'embedcode' => NULL,
         'player_id' => NULL,
-        'width' => NULL,
-        'height' => NULL,
+        'data' => array(),
+        'params' => array(),
+      ),
+    ),
+    'ooyala_player_signed' => array(
+      'arguments' => array(
+        'params' => array(),
+        'data' => array(),
+      ),
+    ),
+    'ooyala_player_unsigned' => array(
+      'arguments' => array(
+        'params' => array(),
+        'data' => array(),
       ),
     ),
     'ooyala_thickbox_player' => array(
@@ -754,24 +766,85 @@ function ooyala_message($message, $variables = array(), $type = 'status') {
 /**
  * A public API function used to output an Ooyala player.
  */
-function ooyala_player($embedcode, $player_id = NULL, $width = NULL, $height = NULL,$autoplay = FALSE) {
-  return theme('ooyala_player', $embedcode, $player_id, $width, $height, $autoplay);
+function ooyala_player($embedcode, $player_id = NULL, $data = array(), $params = array()) {
+  return theme('ooyala_player', $embedcode, $player_id, $data, $params);
 }
 
 /**
  * Theme function to output an Ooyala video player.
+ *
+ * @param $embedcode
+ *   The Ooyala embedcode for the video to display.
+ *
+ * @param $player_id
+ *   Unique ID to use for the player when using Ooyala Javascript API.
+ *
+ * @param $data
+ *   Other locally stored data about the video including length in seconds and
+ *   status.
+ *
+ * @param $params
+ *   An associative array of additional paramaters to pass to the player.js
+ *   script. The key of the array is the paramter name and the value is the
+ *   value which will be sent to Ooyala.
+ *   For more information:
+ *   http://www.ooyala.com/support/docs/player_api#parameters
  */
-function theme_ooyala_player($embedcode, $player_id = NULL, $width = NULL, $height = NULL, $autoplay = FALSE) {
-  if (empty($width)) {
-    $width = variable_get('ooyala_video_width', 400);
+function theme_ooyala_player($embedcode, $player_id = NULL, $data = array(), $params = array()) {
+  // Setup some default paramaters.
+  $params['callback'] = isset($params['callbcak']) ? $params['callback'] : 'receiveOoyalaEvent';
+  $params['embedCode'] = $embedcode;
+  $params['height'] = isset($params['height']) ? $params['height'] : variable_Get('ooyala_video_height', 300);
+  $params['playerId'] = isset($player_id) ? $player_id : 'ooyala_player';
+  $params['width'] = isset($params['width']) ? $params['width'] : variable_Get('ooyala_video_width', 400);
+
+  if (variable_get('ooyala_signed_embeds', FALSE)) {
+    return theme_ooyala_player_signed($params, $data);
   }
-  if (empty($height)) {
-    $height = variable_Get('ooyala_video_height', 300);
+  else {
+    return theme_ooyala_player_unsigned($params, $data);
+  }
+}
+
+/**
+ * Themed output of video player using a unsigned embed.
+ */
+function theme_ooyala_player_unsigned($params, $data) {
+  // Create a $_GET style string out of the parameters array.
+  array_walk($params, create_function('&$value, $key', '$value = $key . "=" . $value;'));
+  $paramater_string = implode('&', $params);
+
+  // @todo: the path to this script should be configurable.
+  return '<script src="http://www.ooyala.com/player.js?' . $paramater_string . '"></script>';  
+}
+
+/**
+ * Themed output of video player using a signed embed.
+ */
+function theme_ooyala_player_signed($params, $data) {
+  // Load the Ooyala API class.
+  module_load_include('inc', 'ooyala', 'includes/ooyala.partner_api');
+  $ooyala_api = new OoyalaPartnerAPI(variable_get('ooyala_global_secret', ''), variable_get('ooyala_global_pcode', ''));
+
+  // When using signed embeds the paramaters need to be in alphabetical order.
+  ksort($params);
+
+  // Figure out the video length by querying Ooyala if it was not passed in the
+  // $data array.
+  if (!isset($data['length'])) {
+    $data['length'] = ooyala_api_video_property($params['embedCode'], 'length');
   }
 
-  $player_id = isset($player_id) ? $player_id : 'ooyala_player';
+  // Set the expires param to now + video length (in milliseconds) + 6 hours.
+  $data['length'] = intval($data['length']/1000);
+  $expires = time() + $data['length'] + (6 * 3600);
+  $params['expires'] = format_date($expires, 'custom', 'YmdHi');
+  
+  // Build the signed request.
+  $request = $ooyala_api->signed_params($params);
 
-  return sprintf('<script src="http://www.ooyala.com/player.js?playerId=' . $player_id . '&callback=receiveOoyalaEvent&autoplay=%d&width=%d&height=%d&embedCode=%s"></script>', $autoplay, $width, $height, $embedcode );
+  // @todo: the path to this script should be configurable.
+  return '<script src="http://www.ooyala.com/player.js?' . $request . '"></script>';
 }
 
 /**
@@ -883,16 +956,17 @@ function theme_ooyala_formatter_ooyala_video($element) {
     unset($item[$key]);
 
     $item['#item'] = $element[$key]['#item'];
-    $value = ($allowed = _text_allowed_values($item)) ? $allowed : $item['#item']['safe'];
-    if ($value) {
-      $values[] = $value;
-    }
+    $embedcode = ($allowed = _text_allowed_values($item)) ? $allowed : $item['#item']['safe'];
+    $data = array(
+      'length' => check_plain($item['#item']['length']),
+      'status' => check_plain($item['#item']['status']),
+    );
   }
 
   $player_id = $element['#field_name'] . '_ooyala_player';
 
   // TODO: Make this formatter work on multiple values.
-  return count($values) ? theme('ooyala_player', implode($values), $player_id) : '';
+  return isset($embedcode) ? theme('ooyala_player', $embedcode, $player_id, $data) : '';
 }
 
 /**
@@ -976,9 +1050,11 @@ function theme_ooyala_video_length($length = NULL) {
     return t('unknown');
   }
 
+  // Convert length from milliseconds to seconds.
+  $length = intval($length/1000);
+
   // Convert seconds to hh:mm:ss.
   // Hours.
-  $length = intval($length/1000);
   $hms = intval(intval($length) / 3600) . ':';
   // Minutes.
   $minutes = intval(($length / 60) % 60); 
@@ -1101,7 +1177,12 @@ function _ooyala_check_directory($path) {
  */
 
 function ooyala_thickbox_player_page($embedcode) {
-  print ooyala_player($embedcode, 'ooyala_thickbox_player' ,NULL,NULL, variable_get('ooyala_thickbox_autoplay', true) );
+  // Set some default paramaters for the video embed.
+  $params = array('height' => NULL, 'width' => NULL);
+  $params['autoplay'] = variable_get('ooyala_thickbox_autoplay', TRUE);
+
+  $data = array();
+  print ooyala_player($embedcode, 'ooyala_thickbox_player', $data, $params);
 }
 
 /**
