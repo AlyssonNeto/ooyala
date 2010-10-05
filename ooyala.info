@@ -1,0 +1,11 @@
+name = Ooyala
+description = Allows uploading and display of videos from the <a href="http://www.ooyala.com">Ooyala</a> video service.
+dependencies[] = content
+package = CCK
+core = 6.x
+; Information added by drupal.org packaging script on 2010-08-17
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "ooyala"
+datestamp = "1282004199"
+

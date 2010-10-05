@@ -1,0 +1,64 @@
+/* $Id: ooyala.css,v 1.2 2010/08/11 00:21:45 quicksketch Exp $ */
+
+div.ooyala-preview {
+  float: left;
+  text-align: center;
+  position: relative;
+  width: 150px;
+  min-height: 100px;
+  padding: 10px;
+}
+
+div.ooyala-preview-hidden {
+  display: none;
+}
+
+div.ooyala-preview-placeholder {
+  width: 130px;
+  border: 1px solid #CCC;
+  text-align: center;
+  text-transform: uppercase;
+  color: #999;
+  padding: 30px 10px;
+}
+
+div.ooyala-button-container input.form-text {
+  display: inline;
+  width: auto;
+}
+
+div.ooyala-progress div {
+  opacity: 0.25;
+  filter: alpha(opacity=25);
+}
+
+div.ooyala-progress span.throbber {
+  display: block;
+  width: 150px;
+  height: 24px;
+  top: 40px;
+  left: 0;
+  position: absolute;
+  z-index: 20;
+  padding: 10px;
+  background: url(throbber.gif) no-repeat center center;
+}
+
+#ooyala-message span.percentage {
+  font-weight: bold;
+}
+
+#ooyala-message span.ooyala-filename {
+  font-style: italic;
+}
+
+div.ooyala-finished #ooyala-message {
+  font-weight: bold;
+  color: #469028;
+}
+
+div.ooyala-button-container input.form-submit,
+div.ooyala-button-container embed {
+  vertical-align: top;
+  margin: 0;
+}

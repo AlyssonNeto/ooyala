@@ -1,0 +1,39 @@
+<?php
+// $Id: ooyala.install,v 1.1 2009/11/10 21:17:44 heronog Exp $
+
+/**
+ * @file
+ * Installation and update functions for the Ooyala module.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function ooyala_install() {
+  drupal_load('module', 'content');
+  content_notify('install', 'ooyala');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function ooyala_uninstall() {
+  drupal_load('module', 'content');
+  content_notify('uninstall', 'ooyala');
+}
+
+/**
+ * Implementation of hook_enable().
+ */
+function ooyala_enable() {
+  drupal_load('module', 'content');
+  content_notify('enable', 'ooyala');
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function ooyala_disable() {
+  drupal_load('module', 'content');
+  content_notify('disable', 'ooyala');
+}
